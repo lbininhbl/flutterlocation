@@ -117,6 +117,8 @@ class MethodChannelLocation extends LocationPlatform {
         return PermissionStatus.deniedForever;
       case 3:
         return PermissionStatus.grantedLimited;
+      case 4:
+        return PermissionStatus.notDetermin;
       default:
         throw PlatformException(
           code: 'UNKNOWN_NATIVE_MESSAGE',

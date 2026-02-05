@@ -126,8 +126,7 @@
                 details:nil]);
       return;
     }
-    if ([CLLocationManager authorizationStatus] ==
-        kCLAuthorizationStatusDenied) {
+    if (_clLocationManager.authorizationStatus == kCLAuthorizationStatusDenied) {
       // Location services are requested but user has denied
       NSString *message =
           @"The user explicitly denied the use of location services for this "
@@ -150,22 +149,35 @@
       }
     }
   } else if ([call.method isEqualToString:@"hasPermission"]) {
-    if ([self isPermissionGranted]) {
-      result([self isHighAccuracyPermitted] ? @1 : @3);
-    } else {
-      result(@0);
-    }
+      CLAuthorizationStatus status = _clLocationManager.authorizationStatus;
+      // 授权了
+      if (status == kCLAuthorizationStatusAuthorizedAlways || status == kCLAuthorizationStatusAuthorizedWhenInUse) {
+          // 直接返回
+          NSNumber *resultStatus = status == kCLAuthorizationStatusAuthorizedWhenInUse ? @3 : @1;
+          result(resultStatus);
+      } else if (status == kCLAuthorizationStatusNotDetermined) {
+          // 未决定
+          result(@4);
+      } else {
+          // 拒绝
+          result(@2);
+      }
   } else if ([call.method isEqualToString:@"requestPermission"]) {
-    if ([self isPermissionGranted]) {
-      result([self isHighAccuracyPermitted] ? @1 : @3);
-    } else if ([CLLocationManager authorizationStatus] ==
-               kCLAuthorizationStatusNotDetermined) {
-      self.flutterResult = result;
-      self.permissionWanted = YES;
-      [self requestPermission];
-    } else {
-      result(@2);
-    }
+      CLAuthorizationStatus status = _clLocationManager.authorizationStatus;
+      // 授权了
+      if (status == kCLAuthorizationStatusAuthorizedAlways || status == kCLAuthorizationStatusAuthorizedWhenInUse) {
+          // 直接返回
+          NSNumber *resultStatus = status == kCLAuthorizationStatusAuthorizedWhenInUse ? @3 : @1;
+          result(resultStatus);
+      } else if (status == kCLAuthorizationStatusNotDetermined) {
+          // 未决定，请求
+          self.flutterResult = result;
+          self.permissionWanted = YES;
+          [self requestPermission];
+      } else {
+          // 拒绝
+          result(@2);
+      }
   } else if ([call.method isEqualToString:@"serviceEnabled"]) {
     if ([CLLocationManager locationServicesEnabled]) {
       result(@1);
@@ -194,15 +206,6 @@
                             openURL:[NSURL URLWithString:urlString]];
                       }
                     }];
-#else
-      UIAlertView *alert = [[UIAlertView alloc]
-              initWithTitle:@"Location is Disabled"
-                    message:@"To use location, go to your Settings App > "
-                            @"Privacy > Location Services."
-                   delegate:self
-          cancelButtonTitle:@"Cancel"
-          otherButtonTitles:nil];
-      [alert show];
 #endif
       result(@0);
     }
@@ -256,7 +259,7 @@
 
 - (BOOL)isPermissionGranted {
   BOOL isPermissionGranted = NO;
-  CLAuthorizationStatus status = [CLLocationManager authorizationStatus];
+    CLAuthorizationStatus status = _clLocationManager.authorizationStatus;
 
 #if TARGET_OS_OSX
   if (status == kCLAuthorizationStatusAuthorized) {
@@ -348,14 +351,14 @@
   }
 }
 
-- (void)locationManager:(CLLocationManager *)manager
-    didChangeAuthorizationStatus:(CLAuthorizationStatus)status {
-  if (status == kCLAuthorizationStatusDenied) {
-    if (self.permissionWanted) {
-      self.permissionWanted = NO;
-      self.flutterResult(@0);
+- (void)locationManagerDidChangeAuthorization:(CLLocationManager *)manager {
+    CLAuthorizationStatus status = manager.authorizationStatus;
+    if (status == kCLAuthorizationStatusDenied) {
+        if (self.permissionWanted) {
+          self.permissionWanted = NO;
+          self.flutterResult(@0);
+        }
     }
-  }
 #if TARGET_OS_OSX
   else if (status == kCLAuthorizationStatusAuthorized) {
     if (self.permissionWanted) {
@@ -382,8 +385,9 @@
   else if (status == kCLAuthorizationStatusAuthorizedWhenInUse ||
            status == kCLAuthorizationStatusAuthorizedAlways) {
     if (self.permissionWanted) {
+       NSNumber *resultStatus = status == kCLAuthorizationStatusAuthorizedWhenInUse ? @3 : @1;
       self.permissionWanted = NO;
-      self.flutterResult([self isHighAccuracyPermitted] ? @1 : @3);
+      self.flutterResult(resultStatus);
     }
 
     if (self.locationWanted || self.flutterListening) {

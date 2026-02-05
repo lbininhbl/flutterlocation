@@ -185,7 +185,10 @@ enum PermissionStatus {
 
   /// The permission to use location services has been denied forever by the
   /// user. No dialog will be displayed on permission request.
-  deniedForever
+  deniedForever,
+
+  /// 还未决定
+  notDetermin
 }
 
 /// The response object of `Location.changeNotificationOptions`.
